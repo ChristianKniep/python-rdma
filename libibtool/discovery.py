@@ -316,7 +316,7 @@ def print_switch(sbn,args,switch):
             additional = " (HOQ:%u VL_Stall:%u)"%(pinf.HOQLife,pinf.VLStallCount);
         else:
             additional = "";
-        lhs = "%3d %4d[  ] ==(%s)%s"%(port0.LID,idx,link,additional);
+        lhs = "%3d %4d[  ] ==(%s)%s"%(port0.LID, port.port_id, link,additional)
 
 	err = []
         peer_port = sbn.topology.get(port);
@@ -324,7 +324,7 @@ def print_switch(sbn,args,switch):
             rhs = '[  ] "" ( )';
         else:
             rhs = "%3d %4d[  ] %s"%(
-                peer_port.to_end_port().LID,idx,
+                peer_port.to_end_port().LID, peer_port.to_end_port().port_id,
                 IBA_describe.dstr(peer_port.parent.desc,True));
 
 	    if better_possible(pinf.linkWidthSupported,peer_port.pinf.linkWidthSupported,
