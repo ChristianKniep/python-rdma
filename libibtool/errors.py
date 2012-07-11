@@ -471,6 +471,8 @@ def cmd_ibdatacounts(argv,o):
     return perform_single_check(argv,o,do_show_counts)
 
 def perform_topo_check(argv,o,funcs):
+    o.add_option("--up", action="store_true", dest="only_up",
+                 help="Only check links that are not POLLING")
     o.add_option("-N","--nocolor",action="store_false",dest="colour",
                  default=True,
                  help="Do not colorize the output");
@@ -507,6 +509,11 @@ def perform_topo_check(argv,o,funcs):
         kwargs["portIdx"] = portIdx;
         kwargs["desc"] = "lid %u port %s"%(ep.LID,portIdx);
         kwargs["portGUID"] = portGUID = ep.portGUID;
+        
+        is_polling = port.pinf.portPhysicalState == IBA.PHYS_PORT_STATE_POLLING
+        if args.only_up and is_polling:
+            return
+
 
         if kind & (KIND_PERF|KIND_CLEAR):
             kwargs["gpath"] = gpath = getattr(path,"_cached_gmp_path",None);
