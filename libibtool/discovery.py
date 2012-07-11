@@ -298,6 +298,9 @@ def print_switch(sbn,args,switch):
         if args.only_down:
             if pinf.portPhysicalState == IBA.PHYS_PORT_STATE_LINK_UP:
                 continue;
+        if args.only_up:
+            if pinf.portPhysicalState == IBA.PHYS_PORT_STATE_POLLING:
+                continue
         if first and not args.line_mode:
             print "Switch %s %s:"%(guid,
                                    IBA_describe.dstr(switch.desc,True));
@@ -316,7 +319,7 @@ def print_switch(sbn,args,switch):
             additional = " (HOQ:%u VL_Stall:%u)"%(pinf.HOQLife,pinf.VLStallCount);
         else:
             additional = "";
-        lhs = "%3d %4d[  ] ==(%s)%s"%(port0.LID,idx,link,additional);
+        lhs = "%3d %4d[  ] ==(%s)%s"%(port0.LID, port.port_id, link,additional)
 
 	err = []
         peer_port = sbn.topology.get(port);
@@ -324,7 +327,7 @@ def print_switch(sbn,args,switch):
             rhs = '[  ] "" ( )';
         else:
             rhs = "%3d %4d[  ] %s"%(
-                peer_port.to_end_port().LID,idx,
+                peer_port.to_end_port().LID, peer_port.port_id,
                 IBA_describe.dstr(peer_port.parent.desc,True));
 
 	    if better_possible(pinf.linkWidthSupported,peer_port.pinf.linkWidthSupported,
@@ -358,6 +361,8 @@ def cmd_iblinkinfo(argv,o):
                  help="Also print VLStallCount and HOQLife.");
     o.add_option("--down",action="store_true",dest="only_down",
                  help="Only print downed links");
+    o.add_option("--up", action="store_true", dest="only_up",
+                 help="Only print links that are not POLLING")
     LibIBOpts.setup(o,discovery=True);
     (args,values) = o.parse_args(argv);
     lib = LibIBOpts(o,args,values,1,(tmpl_target,));
@@ -384,8 +389,11 @@ def cmd_iblinkinfo(argv,o):
             if not isinstance(port.parent,rdma.subnet.Switch):
                 raise CmdError("Port %s is not a switch"%(port));
             sched.run(queue=rdma.discovery.topo_surround_SMP(sched,sbn,port.parent));
-            peer_ports = [(sbn.topology.get(I),idx) for I,idx in port.parent.iterports()];
-            sched.run(mqueue=(rdma.discovery.subnet_pinf_SMP(sched,sbn,idx,sbn.get_path_smp(sched,I.to_end_port()))
-                              for I,idx in peer_ports if I is not None and I.pinf is None));
+            peer_ports = set(I for I, Idx in port.parent.iterports())
+            peer_ports.update(peer for peer, prior in sbn.iterpeers(port))
+            sched.run(mqueue=(rdma.discovery.subnet_pinf_SMP(
+                        sched, sbn, I.port_id, \
+                        sbn.get_path_smp(sched, I.to_end_port())) \
+                    for I in peer_ports if I is not None and I.pinf is None))
             print_switch(sbn,args,port.parent);
     return lib.done();
